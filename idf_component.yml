@@ -1,0 +1,12 @@
+dependencies:
+  espressif/led_strip: ~3.0.1
+  idf: '>=5.3'
+description: ESP32 LED Kit
+files:
+  exclude:
+  - .git
+  - dist
+license: MIT
+repository: https://github.com/atombloom/esp-led-kit.git
+url: https://github.com/atombloom/esp-led-kit.git
+version: 1.0.0
