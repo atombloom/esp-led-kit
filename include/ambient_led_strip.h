@@ -1,5 +1,5 @@
-#ifndef _LED_STRIP_H_
-#define _LED_STRIP_H_
+#ifndef _AMBIENT_LED_STRIP_H_
+#define _AMBIENT_LED_STRIP_H_
 
 #include <cstdint>
 #include <driver/gpio.h>
@@ -11,7 +11,7 @@
 /**
  * @brief 灯带效果枚举
  */
-enum class LedStripEffect {
+enum class AmbientLedStripEffect {
     NONE = 0,           // 无效果（静态显示）
     SOLID_COLOR,        // 单色填充
     FLOW,               // 流水灯
@@ -30,14 +30,14 @@ enum class LedStripEffect {
  * 使用ESP32 RMT实现WS2812灯带控制
  * 支持多种显示效果：单色、流水灯、彩虹、呼吸灯
  */
-class LedStrip {
+class AmbientLedStrip {
 public:
 
-    LedStrip(gpio_num_t gpio_num, 
+    AmbientLedStrip(gpio_num_t gpio_num, 
              uint32_t max_leds = DEFAULT_MAX_LEDS,
              uint32_t resolution_hz = DEFAULT_RESOLUTION_HZ);
 
-    ~LedStrip();
+    ~AmbientLedStrip();
 
     esp_err_t Init();
 
@@ -89,7 +89,7 @@ public:
      * @brief 获取当前效果类型
      * @return 当前效果枚举
      */
-    LedStripEffect GetEffect() const { return current_effect_; }
+    AmbientLedStripEffect GetEffect() const { return current_effect_; }
 
     /**
      * @brief 设置全局亮度
@@ -112,7 +112,7 @@ private:
     uint32_t resolution_hz_;                // RMT分辨率
     led_strip_handle_t led_strip_;          // LED灯带句柄
     bool initialized_;                      // 初始化标志
-    LedStripEffect current_effect_;         // 当前效果类型
+    AmbientLedStripEffect current_effect_;         // 当前效果类型
     esp_timer_handle_t effect_timer_;       // 效果定时器句柄
 
     // 效果相关参数
@@ -180,4 +180,4 @@ private:
     void ApplyBrightness(uint8_t r, uint8_t g, uint8_t b, uint8_t* out_r, uint8_t* out_g, uint8_t* out_b) const;
 };
 
-#endif  // _LED_STRIP_H_
+#endif  // _AMBIENT_LED_STRIP_H_

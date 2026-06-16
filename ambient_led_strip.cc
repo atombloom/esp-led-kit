@@ -1,4 +1,4 @@
-#include "my_led_strip.h"
+#include "ambient_led_strip.h"
 #include <algorithm>
 #include <cmath>
 #include <esp_log.h>
@@ -8,7 +8,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#define TAG "LedStrip"
+#define TAG "AmbientLedStrip"
 
 // 亮度查找表，用于非线性呼吸效果
 // 增加几个100,适当延长呼吸时间
@@ -21,13 +21,13 @@ static const uint8_t kBreatheBrightnessLut[] = {
     100,100,100,100,100
 };
 
-LedStrip::LedStrip(gpio_num_t gpio_num, uint32_t max_leds, uint32_t resolution_hz)
+AmbientLedStrip::AmbientLedStrip(gpio_num_t gpio_num, uint32_t max_leds, uint32_t resolution_hz)
     : gpio_num_(gpio_num)
     , max_leds_(max_leds)
     , resolution_hz_(resolution_hz)
     , led_strip_(nullptr)
     , initialized_(false)
-    , current_effect_(LedStripEffect::NONE)
+    , current_effect_(AmbientLedStripEffect::NONE)
     , effect_timer_(nullptr)
     , effect_r_(0)
     , effect_g_(0)
@@ -42,7 +42,7 @@ LedStrip::LedStrip(gpio_num_t gpio_num, uint32_t max_leds, uint32_t resolution_h
     // brightness_mutex_ 为 std::mutex 类型，无需显式初始化
 }
 
-LedStrip::~LedStrip() {
+AmbientLedStrip::~AmbientLedStrip() {
     StopEffect();
     if (led_strip_ != nullptr) {
         led_strip_del(led_strip_);
@@ -54,7 +54,7 @@ LedStrip::~LedStrip() {
     }
 }
 
-esp_err_t LedStrip::Init() {
+esp_err_t AmbientLedStrip::Init() {
     if (initialized_) {
         return ESP_OK;
     }
@@ -96,12 +96,12 @@ esp_err_t LedStrip::Init() {
     return ESP_OK;
 }
 
-esp_err_t LedStrip::SetSolidColor(uint8_t r, uint8_t g, uint8_t b) {
+esp_err_t AmbientLedStrip::SetSolidColor(uint8_t r, uint8_t g, uint8_t b) {
     if (!initialized_ || led_strip_ == nullptr) {
         return ESP_ERR_INVALID_STATE;
     }
     StopEffect();
-    current_effect_ = LedStripEffect::SOLID_COLOR;
+    current_effect_ = AmbientLedStripEffect::SOLID_COLOR;
 
     // 记录当前单色效果的基础颜色，便于后续亮度变化时实时重绘
     solid_base_r_ = r;
@@ -119,11 +119,11 @@ esp_err_t LedStrip::SetSolidColor(uint8_t r, uint8_t g, uint8_t b) {
     return Refresh();
 }
 
-uint32_t LedStrip::GetMaxLeds() const {
+uint32_t AmbientLedStrip::GetMaxLeds() const {
     return max_leds_;
 }
 
-esp_err_t LedStrip::SetPixel(uint8_t index, uint8_t r, uint8_t g, uint8_t b) {
+esp_err_t AmbientLedStrip::SetPixel(uint8_t index, uint8_t r, uint8_t g, uint8_t b) {
     if (!initialized_ || led_strip_ == nullptr) {
         return ESP_ERR_INVALID_STATE;
     }
@@ -139,7 +139,7 @@ esp_err_t LedStrip::SetPixel(uint8_t index, uint8_t r, uint8_t g, uint8_t b) {
     return Refresh();
 }
 
-esp_err_t LedStrip::Clear() {
+esp_err_t AmbientLedStrip::Clear() {
     if (!initialized_ || led_strip_ == nullptr) {
         return ESP_ERR_INVALID_STATE;
     }
@@ -148,7 +148,7 @@ esp_err_t LedStrip::Clear() {
     return led_strip_clear(led_strip_);
 }
 
-esp_err_t LedStrip::Refresh() {
+esp_err_t AmbientLedStrip::Refresh() {
     if (!initialized_ || led_strip_ == nullptr) {
         return ESP_ERR_INVALID_STATE;
     }
@@ -156,14 +156,14 @@ esp_err_t LedStrip::Refresh() {
     return led_strip_refresh(led_strip_);
 }
 
-esp_err_t LedStrip::StartFlow(uint8_t r, uint8_t g, uint8_t b, uint32_t interval_ms) {
+esp_err_t AmbientLedStrip::StartFlow(uint8_t r, uint8_t g, uint8_t b, uint32_t interval_ms) {
     if (!initialized_) {
         return ESP_ERR_INVALID_STATE;
     }
 
     StopEffect();
 
-    current_effect_ = LedStripEffect::FLOW;
+    current_effect_ = AmbientLedStripEffect::FLOW;
     effect_r_ = r;
     effect_g_ = g;
     effect_b_ = b;
@@ -201,14 +201,14 @@ esp_err_t LedStrip::StartFlow(uint8_t r, uint8_t g, uint8_t b, uint32_t interval
     return ESP_OK;
 }
 
-esp_err_t LedStrip::StartRainbow(uint32_t interval_ms) {
+esp_err_t AmbientLedStrip::StartRainbow(uint32_t interval_ms) {
     if (!initialized_) {
         return ESP_ERR_INVALID_STATE;
     }
 
     StopEffect();
 
-    current_effect_ = LedStripEffect::RAINBOW;
+    current_effect_ = AmbientLedStripEffect::RAINBOW;
     effect_interval_ms_ = interval_ms;
     effect_step_ = 0;
 
@@ -243,14 +243,14 @@ esp_err_t LedStrip::StartRainbow(uint32_t interval_ms) {
 }
 
 // interval_ms: 效果更新定时器周期(20-50ms最佳)
-esp_err_t LedStrip::StartBreathe(uint8_t r, uint8_t g, uint8_t b, uint32_t interval_ms) {
+esp_err_t AmbientLedStrip::StartBreathe(uint8_t r, uint8_t g, uint8_t b, uint32_t interval_ms) {
     if (!initialized_) {
         return ESP_ERR_INVALID_STATE;
     }
 
     StopEffect();
 
-    current_effect_ = LedStripEffect::BREATHE;
+    current_effect_ = AmbientLedStripEffect::BREATHE;
     effect_r_ = r;
     effect_g_ = g;
     effect_b_ = b;
@@ -286,30 +286,30 @@ esp_err_t LedStrip::StartBreathe(uint8_t r, uint8_t g, uint8_t b, uint32_t inter
     return ESP_OK;
 }
 
-esp_err_t LedStrip::StopEffect() {
+esp_err_t AmbientLedStrip::StopEffect() {
     if (effect_timer_ != nullptr) {
         esp_timer_stop(effect_timer_);
         esp_timer_delete(effect_timer_);
         effect_timer_ = nullptr;
     }
-    current_effect_ = LedStripEffect::NONE;
+    current_effect_ = AmbientLedStripEffect::NONE;
     return ESP_OK;
 }
 
-void LedStrip::EffectTimerCallback(void* arg) {
-    LedStrip* strip = static_cast<LedStrip*>(arg);
+void AmbientLedStrip::EffectTimerCallback(void* arg) {
+    AmbientLedStrip* strip = static_cast<AmbientLedStrip*>(arg);
     if (strip == nullptr) {
         return;
     }
 
     switch (strip->current_effect_) {
-        case LedStripEffect::FLOW:
+        case AmbientLedStripEffect::FLOW:
             strip->UpdateFlowEffect();
             break;
-        case LedStripEffect::RAINBOW:
+        case AmbientLedStripEffect::RAINBOW:
             strip->UpdateRainbowEffect();
             break;
-        case LedStripEffect::BREATHE:
+        case AmbientLedStripEffect::BREATHE:
             strip->UpdateBreatheEffect();
             break;
         default:
@@ -317,7 +317,7 @@ void LedStrip::EffectTimerCallback(void* arg) {
     }
 }
 
-void LedStrip::UpdateFlowEffect() {
+void AmbientLedStrip::UpdateFlowEffect() {
     led_strip_clear(led_strip_);
 
     uint8_t out_r, out_g, out_b;
@@ -331,7 +331,7 @@ void LedStrip::UpdateFlowEffect() {
     effect_step_ = (effect_step_ + 1) % max_leds_;
 }
 
-void LedStrip::UpdateRainbowEffect() {
+void AmbientLedStrip::UpdateRainbowEffect() {
     // 为每个LED计算不同的色相值
     for (uint8_t i = 0; i < max_leds_; i++) {
         // 计算色相：每个LED偏移不同角度，加上整体旋转
@@ -354,7 +354,7 @@ void LedStrip::UpdateRainbowEffect() {
     effect_step_ = (effect_step_ + 1) % (360 * max_leds_);
 }
 
-void LedStrip::UpdateBreatheEffect() {
+void AmbientLedStrip::UpdateBreatheEffect() {
     // 查表法呼吸灯：使用预定义亮度查找表实现非线性明暗变化
     const uint32_t lut_size = sizeof(kBreatheBrightnessLut) / sizeof(kBreatheBrightnessLut[0]); // 100
     const uint32_t steps_per_cycle = lut_size * 2;  // 一次完整呼吸包含淡入和淡出两个阶段
@@ -389,7 +389,7 @@ void LedStrip::UpdateBreatheEffect() {
     effect_step_++;
 }
 
-void LedStrip::HsvToRgb(uint16_t h, uint8_t s, uint8_t v, uint8_t* r, uint8_t* g, uint8_t* b) {
+void AmbientLedStrip::HsvToRgb(uint16_t h, uint8_t s, uint8_t v, uint8_t* r, uint8_t* g, uint8_t* b) {
     uint8_t region, remainder, p, q, t;
 
     if (s == 0) {
@@ -426,7 +426,7 @@ void LedStrip::HsvToRgb(uint16_t h, uint8_t s, uint8_t v, uint8_t* r, uint8_t* g
     }
 }
 
-esp_err_t LedStrip::SetBrightness(uint8_t brightness) {
+esp_err_t AmbientLedStrip::SetBrightness(uint8_t brightness) {
     if (brightness > 100) {
         brightness = 100;
     }
@@ -438,7 +438,7 @@ esp_err_t LedStrip::SetBrightness(uint8_t brightness) {
         brightness_ = brightness_max_;
     }
     // 如果当前是单色效果，则根据新的亮度系数实时刷新整条灯带
-    if (current_effect_ == LedStripEffect::SOLID_COLOR && led_strip_ != nullptr) {
+    if (current_effect_ == AmbientLedStripEffect::SOLID_COLOR && led_strip_ != nullptr) {
         uint8_t out_r, out_g, out_b;
         out_r = (solid_base_r_ * brightness_) / 255;
         out_g = (solid_base_g_ * brightness_) / 255;
@@ -453,11 +453,11 @@ esp_err_t LedStrip::SetBrightness(uint8_t brightness) {
     return ESP_OK;
 }
 
-uint8_t LedStrip::GetBrightness() const {
+uint8_t AmbientLedStrip::GetBrightness() const {
     return (brightness_ * 100) / 255;
 }
 
-void LedStrip::ApplyBrightness(uint8_t r, uint8_t g, uint8_t b, uint8_t* out_r, uint8_t* out_g, uint8_t* out_b) const {
+void AmbientLedStrip::ApplyBrightness(uint8_t r, uint8_t g, uint8_t b, uint8_t* out_r, uint8_t* out_g, uint8_t* out_b) const {
     // 读取当前亮度时加锁，保证与 SetBrightness 并发安全
     std::lock_guard<std::mutex> lock(brightness_mutex_);
     uint8_t current_brightness = brightness_;
@@ -466,6 +466,6 @@ void LedStrip::ApplyBrightness(uint8_t r, uint8_t g, uint8_t b, uint8_t* out_r, 
     *out_b = (b * current_brightness) / 255;
 }
 
-void LedStrip::SetBrightnessLimit(bool enable) {
+void AmbientLedStrip::SetBrightnessLimit(bool enable) {
     brightness_limit_enabled_ = enable;
 }

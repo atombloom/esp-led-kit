@@ -5,5 +5,5 @@ idf_component_register(
         "include"
     EMBED_TXTFILES
     REQUIRES
-    	"esp_timer"
+    	"esp_timer" "esp_driver_gpio" 
 )
