@@ -16,7 +16,8 @@ enum class AmbientLedStripEffect {
     SOLID_COLOR,        // 单色填充
     FLOW,               // 流水灯
     RAINBOW,            // 彩虹效果
-    BREATHE             // 呼吸灯
+    BREATHE,            // 呼吸灯
+    BLINK               // 闪烁(亮灭交替)
 };
 
 #define DEFAULT_BRIGHTNESS 127
@@ -78,6 +79,16 @@ public:
      * @return ESP_OK表示成功，其他值表示失败
      */
     esp_err_t StartBreathe(uint8_t r, uint8_t g, uint8_t b, uint32_t interval_ms=30);
+
+    /**
+     * @brief 启动闪烁效果(亮灭交替)
+     * @param r 红色值（0-255）
+     * @param g 绿色值（0-255）
+     * @param b 蓝色值（0-255）
+     * @param interval_ms 单次亮(或灭)持续时间（毫秒），完整闪烁周期为 2*interval_ms
+     * @return ESP_OK表示成功，其他值表示失败
+     */
+    esp_err_t StartBlink(uint8_t r, uint8_t g, uint8_t b, uint32_t interval_ms);
 
     /**
      * @brief 停止当前效果
@@ -156,6 +167,11 @@ private:
      * @brief 更新呼吸灯效果
      */
     void UpdateBreatheEffect();
+
+    /**
+     * @brief 更新闪烁效果
+     */
+    void UpdateBlinkEffect();
 
     /**
      * @brief HSV转RGB

@@ -286,6 +286,50 @@ esp_err_t AmbientLedStrip::StartBreathe(uint8_t r, uint8_t g, uint8_t b, uint32_
     return ESP_OK;
 }
 
+// interval_ms: 单次亮/灭持续时间，完整闪烁周期为 2*interval_ms
+esp_err_t AmbientLedStrip::StartBlink(uint8_t r, uint8_t g, uint8_t b, uint32_t interval_ms) {
+    if (!initialized_) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    StopEffect();
+
+    current_effect_ = AmbientLedStripEffect::BLINK;
+    effect_r_ = r;
+    effect_g_ = g;
+    effect_b_ = b;
+    effect_interval_ms_ = interval_ms;
+    effect_step_ = 0;
+
+    const esp_timer_create_args_t timer_args = {
+        .callback = EffectTimerCallback,
+        .arg = this,
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "led_strip_blink",
+        .skip_unhandled_events = false
+    };
+
+    esp_err_t ret = esp_timer_create(&timer_args, &effect_timer_);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to create blink timer");
+        return ret;
+    }
+
+    // immediately execute once
+    UpdateBlinkEffect();
+
+    ret = esp_timer_start_periodic(effect_timer_, interval_ms * 1000);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to start blink timer");
+        esp_timer_delete(effect_timer_);
+        effect_timer_ = nullptr;
+        return ret;
+    }
+
+    ESP_LOGI(TAG, "Blink effect started");
+    return ESP_OK;
+}
+
 esp_err_t AmbientLedStrip::StopEffect() {
     if (effect_timer_ != nullptr) {
         esp_timer_stop(effect_timer_);
@@ -311,6 +355,9 @@ void AmbientLedStrip::EffectTimerCallback(void* arg) {
             break;
         case AmbientLedStripEffect::BREATHE:
             strip->UpdateBreatheEffect();
+            break;
+        case AmbientLedStripEffect::BLINK:
+            strip->UpdateBlinkEffect();
             break;
         default:
             break;
@@ -385,6 +432,23 @@ void AmbientLedStrip::UpdateBreatheEffect() {
         led_strip_set_pixel(led_strip_, i, out_r, out_g, out_b);
     }
     Refresh();
+
+    effect_step_++;
+}
+
+void AmbientLedStrip::UpdateBlinkEffect() {
+    // 偶数步点亮，奇数步熄灭，形成亮灭交替的闪烁效果
+    if (effect_step_ % 2 == 0) {
+        uint8_t out_r, out_g, out_b;
+        ApplyBrightness(effect_r_, effect_g_, effect_b_, &out_r, &out_g, &out_b);
+        for (uint32_t i = 0; i < max_leds_; i++) {
+            led_strip_set_pixel(led_strip_, i, out_r, out_g, out_b);
+        }
+        Refresh();
+    } else {
+        led_strip_clear(led_strip_);
+        Refresh();
+    }
 
     effect_step_++;
 }
