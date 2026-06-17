@@ -170,7 +170,9 @@ esp_err_t AmbientLedStrip::StartFlow(uint8_t r, uint8_t g, uint8_t b, uint32_t i
     effect_interval_ms_ = interval_ms;
     effect_step_ = 0;
 
-    led_strip_clear(led_strip_);
+    for (uint32_t i = 0; i < max_leds_; i++) {
+        led_strip_set_pixel(led_strip_, i, 0, 0, 0);
+    }
 
     const esp_timer_create_args_t timer_args = {
         .callback = EffectTimerCallback,
@@ -337,6 +339,9 @@ esp_err_t AmbientLedStrip::StopEffect() {
         effect_timer_ = nullptr;
     }
     current_effect_ = AmbientLedStripEffect::NONE;
+    {
+        std::lock_guard<std::mutex> lock(refresh_mutex_);
+    }
     return ESP_OK;
 }
 
@@ -365,7 +370,9 @@ void AmbientLedStrip::EffectTimerCallback(void* arg) {
 }
 
 void AmbientLedStrip::UpdateFlowEffect() {
-    led_strip_clear(led_strip_);
+    for (uint32_t i = 0; i < max_leds_; i++) {
+        led_strip_set_pixel(led_strip_, i, 0, 0, 0);
+    }
 
     uint8_t out_r, out_g, out_b;
     ApplyBrightness(effect_r_, effect_g_, effect_b_, &out_r, &out_g, &out_b);
@@ -427,7 +434,6 @@ void AmbientLedStrip::UpdateBreatheEffect() {
     uint8_t out_r, out_g, out_b;
     ApplyBrightness(r, g, b, &out_r, &out_g, &out_b);
 
-    led_strip_clear(led_strip_);
     for (uint32_t i = 0; i < max_leds_; i++) {
         led_strip_set_pixel(led_strip_, i, out_r, out_g, out_b);
     }
@@ -446,7 +452,9 @@ void AmbientLedStrip::UpdateBlinkEffect() {
         }
         Refresh();
     } else {
-        led_strip_clear(led_strip_);
+        for (uint32_t i = 0; i < max_leds_; i++) {
+            led_strip_set_pixel(led_strip_, i, 0, 0, 0);
+        }
         Refresh();
     }
 
